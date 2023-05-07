@@ -48,6 +48,9 @@ TIM_HandleTypeDef htim16;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
+uint16_t kom;
+uint16_t znak;
+uint16_t dl_kom;
 
 /* USER CODE END PV */
 
@@ -63,16 +66,32 @@ static void MX_USART2_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-int __io_putchar(int ch)
+//int __io_putchar(int ch)
+//{
+//  if (ch == '\n') {
+//    __io_putchar('\r');
+//  }
+//
+//  HAL_UART_Transmit(&huart2, (uint8_t*)&ch, 1, HAL_MAX_DELAY);
+//
+//  return 1;
+//}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-  if (ch == '\n') {
-    __io_putchar('\r');
-  }
+	if (huart -> Instance == USART2){
+		if(znak == 'e'){
+			sprintf(kom, "Dioda on");
+			dl_kom = 8;
+		}
 
-  HAL_UART_Transmit(&huart2, (uint8_t*)&ch, 1, HAL_MAX_DELAY);
-
-  return 1;
+		HAL_UART_Transmit_IT(&huart2, &znak, dl_kom);
+		HAL_UART_Receive_IT(&huart2, &znak, 1);
+	}
 }
+
+
+
 /* USER CODE END 0 */
 
 /**
@@ -107,7 +126,7 @@ int main(void)
   MX_TIM16_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-
+  HAL_UART_Receive_IT(&huart2, &znak, 1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -118,11 +137,13 @@ int main(void)
   HAL_Delay(1000);
   while (1)
   {
-	  uint32_t value = HAL_TIM_ReadCapturedValue(&htim2, TIM_CHANNEL_1);
-
-	  printf("%.1f cm\n", (value - 480) / 58.0f);
+//	  uint32_t value = HAL_TIM_ReadCapturedValue(&htim2, TIM_CHANNEL_1);
+//
+//	  printf("%.1f cm\n", (value - 257) / 58.0f);
+////	  printf("value = %lu\n", value);
 //	  HAL_Delay(1000);
-
+//	  printf("Current");
+	  HAL_UART_Transmit(&huart2, "Hello world!", 12, HAL_MAX_DELAY);
 
     /* USER CODE END WHILE */
 
@@ -147,7 +168,10 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
+  RCC_OscInitStruct.PLL.PREDIV = RCC_PREDIV_DIV1;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -157,12 +181,12 @@ void SystemClock_Config(void)
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
     Error_Handler();
   }
@@ -226,7 +250,7 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
-  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_FALLING;
+  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
   sConfigIC.ICFilter = 0;
@@ -297,7 +321,7 @@ static void MX_USART2_UART_Init(void)
 
   /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = 38400;
+  huart2.Init.BaudRate = 115200;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;
