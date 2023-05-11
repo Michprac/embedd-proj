@@ -52,6 +52,9 @@ uint32_t ulSonicRead_Start = 0;
 uint32_t ulSonicRead_Stop = 0;
 float fSonicRead_Value = 0.0;
 uint8_t message[50] = {0};
+uint8_t portArray[8] = {BLUE_1_GPIO_Port, BLUE_2_GPIO_Port};
+
+//TODO: add port, pin & scale values arrays
 
 /* USER CODE END PV */
 
