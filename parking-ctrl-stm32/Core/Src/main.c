@@ -22,8 +22,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
-
-
+#include <string.h>
+#include <stdlib.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -48,6 +48,11 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
+uint32_t ulSonicRead_Start = 0;
+uint32_t ulSonicRead_Stop = 0;
+float fSonicRead_Value = 0.0;
+uint8_t message[50] = {0};
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -56,22 +61,66 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
-//#ifdef __GNUC__
-//#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
-//#else
-//#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
-//#endif
-//
-//PUTCHAR_PROTOTYPE
-//{
-//  HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
-//  return ch;
-//}
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+int __io_putchar(int ch)
+{
+  if (ch == '\n') {
+    __io_putchar('\r');
+  }
+
+  HAL_UART_Transmit(&huart2, (uint8_t*)&ch, 1, HAL_MAX_DELAY);
+
+  return 1;
+}
+
+void printDebugMessage(){
+
+	memset(message, 0, sizeof message);
+	sprintf((char *)message, "%.1f cm.\n", fSonicRead_Value);
+	printf((char *)message);
+
+}
+
+void readSonicSensor(){
+	ulSonicRead_Start = HAL_TIM_ReadCapturedValue(&htim2, TIM_CHANNEL_1);
+	ulSonicRead_Stop = HAL_TIM_ReadCapturedValue(&htim2, TIM_CHANNEL_2);
+	fSonicRead_Value = (float)((ulSonicRead_Stop - ulSonicRead_Start))/ 58.0;
+
+}
+
+void vSignalDistanceValue(){
+
+	if (fSonicRead_Value < 100.0){
+	  HAL_GPIO_WritePin(BLUE_1_GPIO_Port, BLUE_1_Pin, GPIO_PIN_SET);
+	} else {HAL_GPIO_WritePin(BLUE_1_GPIO_Port, BLUE_1_Pin, GPIO_PIN_RESET);}
+	if (fSonicRead_Value < 50.0){
+	  HAL_GPIO_WritePin(BLUE_2_GPIO_Port, BLUE_2_Pin, GPIO_PIN_SET);
+	}else {HAL_GPIO_WritePin(BLUE_2_GPIO_Port, BLUE_2_Pin, GPIO_PIN_RESET);}
+	if (fSonicRead_Value < 25.0){
+	  HAL_GPIO_WritePin(GREEN_3_GPIO_Port, GREEN_3_Pin, GPIO_PIN_SET);
+	} else { HAL_GPIO_WritePin(GREEN_3_GPIO_Port, GREEN_3_Pin, GPIO_PIN_RESET); }
+	if (fSonicRead_Value < 20.0){
+	  HAL_GPIO_WritePin(GREEN_4_GPIO_Port, GREEN_4_Pin, GPIO_PIN_SET);
+	} else{ HAL_GPIO_WritePin(GREEN_4_GPIO_Port, GREEN_4_Pin, GPIO_PIN_RESET);  }
+	if (fSonicRead_Value < 15.0){
+	  HAL_GPIO_WritePin(YELLOW_5_GPIO_Port, YELLOW_5_Pin, GPIO_PIN_SET);
+	} else { HAL_GPIO_WritePin(YELLOW_5_GPIO_Port, YELLOW_5_Pin, GPIO_PIN_RESET);}
+	if (fSonicRead_Value < 10.0){
+	  HAL_GPIO_WritePin(YELLOW_6_GPIO_Port, YELLOW_6_Pin, GPIO_PIN_SET);
+	} else {HAL_GPIO_WritePin(YELLOW_6_GPIO_Port, YELLOW_6_Pin, GPIO_PIN_RESET);}
+	if (fSonicRead_Value < 8.0){
+	  HAL_GPIO_WritePin(RED_7_GPIO_Port, RED_7_Pin, GPIO_PIN_SET);
+	}else {HAL_GPIO_WritePin(RED_7_GPIO_Port, RED_7_Pin, GPIO_PIN_RESET);}
+	if (fSonicRead_Value < 5.0){
+	  HAL_GPIO_WritePin(RED_8_GPIO_Port, RED_8_Pin, GPIO_PIN_SET);
+	}else{HAL_GPIO_WritePin(RED_8_GPIO_Port, RED_8_Pin, GPIO_PIN_RESET);}
+
+}
 
 
 
@@ -118,47 +167,10 @@ int main(void)
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
   while (1)
   {
-//	  uint32_t value = HAL_TIM_ReadCapturedValue(&htim2, TIM_CHANNEL_1);
-//
-
-	  uint32_t start = HAL_TIM_ReadCapturedValue(&htim2, TIM_CHANNEL_1);
-	  uint32_t stop = HAL_TIM_ReadCapturedValue(&htim2, TIM_CHANNEL_2);
-	  float value = (stop - start)/ 58.0;
-
-
-	  static uint16_t licznik = 0;
-	  uint8_t komunikat[50];
-	  uint16_t rozmiar = 0;
-	  licznik=1;
-	  rozmiar = sprintf((char *)komunikat, "%.1f cm.\n\r", value );
-	  HAL_UART_Transmit(&huart2, (uint8_t *)komunikat, rozmiar,1000);
-	  HAL_Delay(1000);
-	  if (value > 100.0){
-		  HAL_GPIO_WritePin(BLUE_1_GPIO_Port, BLUE_1_Pin, GPIO_PIN_SET);
-	  } else {HAL_GPIO_WritePin(BLUE_1_GPIO_Port, BLUE_1_Pin, GPIO_PIN_RESET);}
-	  if (value > 50.0){
-		  HAL_GPIO_WritePin(BLUE_2_GPIO_Port, BLUE_2_Pin, GPIO_PIN_SET);
-	  }else {HAL_GPIO_WritePin(BLUE_2_GPIO_Port, BLUE_2_Pin, GPIO_PIN_RESET);}
-	  if (value > 25.0){
-		  HAL_GPIO_WritePin(GREEN_3_GPIO_Port, GREEN_3_Pin, GPIO_PIN_SET);
-	  } else { HAL_GPIO_WritePin(GREEN_3_GPIO_Port, GREEN_3_Pin, GPIO_PIN_RESET); }
-	  if (value > 20.0){
-		  HAL_GPIO_WritePin(GREEN_4_GPIO_Port, GREEN_4_Pin, GPIO_PIN_SET);
-	  } else{ HAL_GPIO_WritePin(GREEN_4_GPIO_Port, GREEN_4_Pin, GPIO_PIN_RESET);  }
-	  if (value > 15.0){
-		  HAL_GPIO_WritePin(YELLOW_5_GPIO_Port, YELLOW_5_Pin, GPIO_PIN_SET);
-	  } else { HAL_GPIO_WritePin(YELLOW_5_GPIO_Port, YELLOW_5_Pin, GPIO_PIN_RESET);}
-	  if (value > 10.0){
-		  HAL_GPIO_WritePin(YELLOW_6_GPIO_Port, YELLOW_6_Pin, GPIO_PIN_SET);
-	  } else {HAL_GPIO_WritePin(YELLOW_6_GPIO_Port, YELLOW_6_Pin, GPIO_PIN_RESET);}
-	  if (value > 8.0){
-		  HAL_GPIO_WritePin(RED_7_GPIO_Port, RED_7_Pin, GPIO_PIN_SET);
-	  }else {HAL_GPIO_WritePin(RED_7_GPIO_Port, RED_7_Pin, GPIO_PIN_RESET);}
-	  if (value > 5.0){
-		  HAL_GPIO_WritePin(RED_8_GPIO_Port, RED_8_Pin, GPIO_PIN_SET);
-	  }else{HAL_GPIO_WritePin(RED_8_GPIO_Port, RED_8_Pin, GPIO_PIN_RESET);}
-
-
+	  readSonicSensor();
+	  vSignalDistanceValue();
+	  printDebugMessage();
+	  HAL_Delay(500);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -260,13 +272,14 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
+  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_FALLING;
   sConfigIC.ICSelection = TIM_ICSELECTION_INDIRECTTI;
   if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_2) != HAL_OK)
   {
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
+  sConfigOC.Pulse = 10;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
