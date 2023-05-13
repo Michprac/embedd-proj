@@ -52,9 +52,37 @@ uint32_t ulSonicRead_Start = 0;
 uint32_t ulSonicRead_Stop = 0;
 float fSonicRead_Value = 0.0;
 uint8_t message[50] = {0};
-uint8_t portArray[8] = {BLUE_1_GPIO_Port, BLUE_2_GPIO_Port};
 
-//TODO: add port, pin & scale values arrays
+uint32_t tick_start = 0;
+
+typedef struct{
+	GPIO_TypeDef *port;
+	uint16_t pin;
+} LED_pins;
+
+const LED_pins LED_array[8] = {
+		{BLUE_1_GPIO_Port, BLUE_1_Pin},
+		{BLUE_2_GPIO_Port, BLUE_2_Pin},
+		{GREEN_3_GPIO_Port, GREEN_3_Pin},
+		{GREEN_4_GPIO_Port, GREEN_4_Pin},
+		{YELLOW_5_GPIO_Port, YELLOW_5_Pin},
+		{YELLOW_6_GPIO_Port, YELLOW_6_Pin},
+		{RED_7_GPIO_Port, RED_7_Pin},
+		{RED_8_GPIO_Port, RED_8_Pin},
+};
+
+
+//uint8_t portArray[8] = {BLUE_1_GPIO_Port, BLUE_2_GPIO_Port, GREEN_3_GPIO_Port, GREEN_4_GPIO_Port,
+//						YELLOW_5_GPIO_Port, YELLOW_6_GPIO_Port, RED_7_GPIO_Port, RED_8_GPIO_Port};
+
+
+//uint8_t pinArray[8] = {BLUE_1_Pin, BLUE_2_Pin, GREEN_3_Pin, GREEN_4_Pin,
+//						YELLOW_5_Pin, YELLOW_6_Pin, RED_7_Pin, RED_8_Pin};
+
+
+float valueArray[8] = {50.0, 32.0, 20.0, 15.0, 10.0, 7.0, 5.0, 3.0};
+
+//TODO: add port #DONE!#, pin #DONE!# & scale values #DONE!# arrays
 
 /* USER CODE END PV */
 
@@ -98,30 +126,17 @@ void readSonicSensor(){
 
 void vSignalDistanceValue(){
 
-	if (fSonicRead_Value < 100.0){
-	  HAL_GPIO_WritePin(BLUE_1_GPIO_Port, BLUE_1_Pin, GPIO_PIN_SET);
-	} else {HAL_GPIO_WritePin(BLUE_1_GPIO_Port, BLUE_1_Pin, GPIO_PIN_RESET);}
-	if (fSonicRead_Value < 50.0){
-	  HAL_GPIO_WritePin(BLUE_2_GPIO_Port, BLUE_2_Pin, GPIO_PIN_SET);
-	}else {HAL_GPIO_WritePin(BLUE_2_GPIO_Port, BLUE_2_Pin, GPIO_PIN_RESET);}
-	if (fSonicRead_Value < 25.0){
-	  HAL_GPIO_WritePin(GREEN_3_GPIO_Port, GREEN_3_Pin, GPIO_PIN_SET);
-	} else { HAL_GPIO_WritePin(GREEN_3_GPIO_Port, GREEN_3_Pin, GPIO_PIN_RESET); }
-	if (fSonicRead_Value < 20.0){
-	  HAL_GPIO_WritePin(GREEN_4_GPIO_Port, GREEN_4_Pin, GPIO_PIN_SET);
-	} else{ HAL_GPIO_WritePin(GREEN_4_GPIO_Port, GREEN_4_Pin, GPIO_PIN_RESET);  }
-	if (fSonicRead_Value < 15.0){
-	  HAL_GPIO_WritePin(YELLOW_5_GPIO_Port, YELLOW_5_Pin, GPIO_PIN_SET);
-	} else { HAL_GPIO_WritePin(YELLOW_5_GPIO_Port, YELLOW_5_Pin, GPIO_PIN_RESET);}
-	if (fSonicRead_Value < 10.0){
-	  HAL_GPIO_WritePin(YELLOW_6_GPIO_Port, YELLOW_6_Pin, GPIO_PIN_SET);
-	} else {HAL_GPIO_WritePin(YELLOW_6_GPIO_Port, YELLOW_6_Pin, GPIO_PIN_RESET);}
-	if (fSonicRead_Value < 8.0){
-	  HAL_GPIO_WritePin(RED_7_GPIO_Port, RED_7_Pin, GPIO_PIN_SET);
-	}else {HAL_GPIO_WritePin(RED_7_GPIO_Port, RED_7_Pin, GPIO_PIN_RESET);}
-	if (fSonicRead_Value < 5.0){
-	  HAL_GPIO_WritePin(RED_8_GPIO_Port, RED_8_Pin, GPIO_PIN_SET);
-	}else{HAL_GPIO_WritePin(RED_8_GPIO_Port, RED_8_Pin, GPIO_PIN_RESET);}
+
+	unsigned long int array_size = sizeof(LED_array) / sizeof(LED_array[0]);
+
+	for (int i = 0; i < array_size; i++){
+		if (fSonicRead_Value < valueArray[i]){
+			  HAL_GPIO_WritePin(LED_array[i].port, LED_array[i].pin, GPIO_PIN_SET);
+		}
+		else {
+			HAL_GPIO_WritePin(LED_array[i].port, LED_array[i].pin, GPIO_PIN_RESET);
+		}
+	}
 
 }
 
@@ -168,12 +183,17 @@ int main(void)
   HAL_TIM_IC_Start(&htim2, TIM_CHANNEL_1);
   HAL_TIM_IC_Start(&htim2, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
+  tick_start = HAL_GetTick();
   while (1)
   {
-	  readSonicSensor();
-	  vSignalDistanceValue();
-	  printDebugMessage();
-	  HAL_Delay(500);
+
+	  if (HAL_GetTick() - tick_start > 500){
+
+		  readSonicSensor();
+		  vSignalDistanceValue();
+		  printDebugMessage();
+		  tick_start = HAL_GetTick();
+	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -348,7 +368,8 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOC_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GREEN_3_Pin|GREEN_4_Pin|YELLOW_5_Pin|RED_8_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, GREEN_3_Pin|GREEN_4_Pin|YELLOW_5_Pin|BUZZER_digital_Pin
+                          |RED_8_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(RED_7_GPIO_Port, RED_7_Pin, GPIO_PIN_RESET);
@@ -356,8 +377,16 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, YELLOW_6_Pin|BLUE_1_Pin|BLUE_2_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : GREEN_3_Pin GREEN_4_Pin YELLOW_5_Pin RED_8_Pin */
-  GPIO_InitStruct.Pin = GREEN_3_Pin|GREEN_4_Pin|YELLOW_5_Pin|RED_8_Pin;
+  /*Configure GPIO pin : SERVO_analog_Pin */
+  GPIO_InitStruct.Pin = SERVO_analog_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(SERVO_analog_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : GREEN_3_Pin GREEN_4_Pin YELLOW_5_Pin BUZZER_digital_Pin
+                           RED_8_Pin */
+  GPIO_InitStruct.Pin = GREEN_3_Pin|GREEN_4_Pin|YELLOW_5_Pin|BUZZER_digital_Pin
+                          |RED_8_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

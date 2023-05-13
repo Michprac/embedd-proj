@@ -59,6 +59,8 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define SERVO_analog_Pin GPIO_PIN_4
+#define SERVO_analog_GPIO_Port GPIOA
 #define GREEN_3_Pin GPIO_PIN_5
 #define GREEN_3_GPIO_Port GPIOA
 #define GREEN_4_Pin GPIO_PIN_6
@@ -67,6 +69,8 @@ void Error_Handler(void);
 #define YELLOW_5_GPIO_Port GPIOA
 #define RED_7_Pin GPIO_PIN_7
 #define RED_7_GPIO_Port GPIOC
+#define BUZZER_digital_Pin GPIO_PIN_8
+#define BUZZER_digital_GPIO_Port GPIOA
 #define RED_8_Pin GPIO_PIN_9
 #define RED_8_GPIO_Port GPIOA
 #define YELLOW_6_Pin GPIO_PIN_6
