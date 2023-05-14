@@ -73,6 +73,8 @@ void Error_Handler(void);
 #define BUZZER_digital_GPIO_Port GPIOA
 #define RED_8_Pin GPIO_PIN_9
 #define RED_8_GPIO_Port GPIOA
+#define Buzzer_pin_Pin GPIO_PIN_4
+#define Buzzer_pin_GPIO_Port GPIOB
 #define YELLOW_6_Pin GPIO_PIN_6
 #define YELLOW_6_GPIO_Port GPIOB
 #define BLUE_1_Pin GPIO_PIN_8
