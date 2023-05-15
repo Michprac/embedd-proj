@@ -2,5 +2,19 @@
 
 
 # eclipse
+.metadata
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.settings/
+.loadpath
+.recommenders
 
-
+# General
+.DS_Store
+.AppleDouble
+.LSOverride

@@ -45,20 +45,11 @@
 /* Private variables ---------------------------------------------------------*/
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim15;
 
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
-uint32_t ulSonicRead_Start = 0;
-uint32_t ulSonicRead_Stop = 0;
-float fSonicRead_Value = 0.0;
-uint8_t message[50] = {0};
-
-uint32_t tick_start = 0;
-uint32_t tick_start_2 = 0;
-
-uint8_t frequency_coeff = 0;
 
 typedef struct{
 	GPIO_TypeDef *port;
@@ -76,6 +67,26 @@ const LED_pins LED_array[8] = {
 		{RED_8_GPIO_Port, RED_8_Pin},
 };
 
+typedef enum{
+    INIT,
+    IDLE,
+    SAFE_DRIVE,
+    OBSTACLE_DETECTED,
+    WALL_DETECTED,
+    RESET_POSITION,
+
+} board_process_t;
+
+uint32_t ulSonicRead_Start = 0;
+uint32_t ulSonicRead_Stop = 0;
+float fSonicRead_Value = 0.0;
+uint8_t message[50] = {0};
+uint32_t tick_start = 0;
+uint32_t tick_start_2 = 0;
+uint8_t frequency_coeff = 0;
+board_process_t boardProcess = INIT;
+uint8_t usSafeDistance = 0;
+uint8_t usWallDetection = 0;
 
 
 float valueArray[8] = {50.0, 32.0, 20.0, 15.0, 10.0, 7.0, 5.0, 3.0};
@@ -90,6 +101,7 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
+static void MX_TIM15_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -108,7 +120,7 @@ int __io_putchar(int ch)
   return 1;
 }
 
-void printDebugMessage(){
+void vPrintDebugMessage(){
 
 	memset(message, 0, sizeof message);
 	sprintf((char *)message, "%.1f cm.\n", fSonicRead_Value);
@@ -116,7 +128,7 @@ void printDebugMessage(){
 
 }
 
-void readSonicSensor(){
+void vGetSonicSensorValue(){
 	ulSonicRead_Start = HAL_TIM_ReadCapturedValue(&htim2, TIM_CHANNEL_1);
 	ulSonicRead_Stop = HAL_TIM_ReadCapturedValue(&htim2, TIM_CHANNEL_2);
 	fSonicRead_Value = (float)((ulSonicRead_Stop - ulSonicRead_Start))/ 58.0;
@@ -152,7 +164,35 @@ void vSignalDistanceValue(){
 
 }
 
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
+{
+    //Main program funciton
+    if(htim == &htim15){
 
+        vGetSonicSensorValue();
+        vPrintDebugMessage();
+        vSignalDistanceValue();
+
+        switch(boardProcess)
+        {
+            case INIT:
+                break;
+            case IDLE:
+                break;
+            case SAFE_DRIVE:
+                break;
+            case WALL_DETECTED:
+                break;
+            case OBSTACLE_DETECTED:
+                break;
+            case RESET_POSITION:
+                break;
+            default:
+                break;
+
+        }
+    }
+}
 
 /* USER CODE END 0 */
 
@@ -187,6 +227,7 @@ int main(void)
   MX_USART2_UART_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
+  MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -199,13 +240,6 @@ int main(void)
   tick_start = HAL_GetTick();
   while (1)
   {
-
-	  readSonicSensor();
-	  vSignalDistanceValue();
-	  printDebugMessage();
-	  tick_start = HAL_GetTick();
-
-
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -251,9 +285,10 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_TIM2
-                              |RCC_PERIPHCLK_TIM34;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_TIM15
+                              |RCC_PERIPHCLK_TIM2|RCC_PERIPHCLK_TIM34;
   PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
+  PeriphClkInit.Tim15ClockSelection = RCC_TIM15CLK_HCLK;
   PeriphClkInit.Tim2ClockSelection = RCC_TIM2CLK_HCLK;
   PeriphClkInit.Tim34ClockSelection = RCC_TIM34CLK_HCLK;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
@@ -386,6 +421,52 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 2 */
   HAL_TIM_MspPostInit(&htim3);
+
+}
+
+/**
+  * @brief TIM15 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM15_Init(void)
+{
+
+  /* USER CODE BEGIN TIM15_Init 0 */
+
+  /* USER CODE END TIM15_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM15_Init 1 */
+
+  /* USER CODE END TIM15_Init 1 */
+  htim15.Instance = TIM15;
+  htim15.Init.Prescaler = 6000;
+  htim15.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim15.Init.Period = 6000;
+  htim15.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim15.Init.RepetitionCounter = 0;
+  htim15.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim15) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim15, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim15, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM15_Init 2 */
+
+  /* USER CODE END TIM15_Init 2 */
 
 }
 
