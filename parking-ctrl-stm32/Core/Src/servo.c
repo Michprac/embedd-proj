@@ -30,21 +30,3 @@ void servo_set_angle(uint8_t angle)
 
 }
 
-
-void servo_set_speed(int speed)
-{
-	if(speed < -SERVO_MAX_SPEED)
-		speed = -SERVO_MAX_SPEED;
-	else if(speed > SERVO_MAX_SPEED)
-		speed = SERVO_MAX_SPEED;
-
-
-	uint32_t pwm_duty_us;
-
-
-	pwm_duty_us = (SERVO_MAX_US + SERVO_MIN_US)/2 +
-			(speed * (SERVO_MAX_US - SERVO_MIN_US)/2) / SERVO_MAX_SPEED;
-
-	__HAL_TIM_SET_COMPARE(pwm_tim, pwm_channel, pwm_duty_us);
-}
-

@@ -202,53 +202,61 @@ int main(void)
 
   servo_init(&htim3, TIM_CHANNEL_1);
 
-  int speed_table[] = {-20, 10, 20, 50};
-
   uint8_t angle_table[] = {0, 50, 100, 180};
+  float way_table[] = {0, 0, 0, 0};
+  float max = 0;
+
 
   int i = 0;
+  int n = 0;
+  int Index = 0;
   uint32_t time_tick = HAL_GetTick();
   uint32_t max_time = 2000;
 
   while (1)
   {
 
-//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1000);
-//	  HAL_Delay(500);
-//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1100);
-//	  HAL_Delay(500);
-//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1200);
-//	  HAL_Delay(500);
-//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1300);
-//	  HAL_Delay(500);
-//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1400);
-//	  HAL_Delay(500);
-//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1500);
-//	  HAL_Delay(500);
-//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1600);
-//	  HAL_Delay(500);
-//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1500);
-//	  HAL_Delay(500);
-//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1600);
-//	  HAL_Delay(500);
-//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1700);
-//	  HAL_Delay(500);
-//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1800);
-//	  HAL_Delay(500);
-//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1900);
-//	  HAL_Delay(500);
-//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 2000);
-//	  HAL_Delay(500);
-//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 2050);
-//	  HAL_Delay(2000);
 
 	  if ( (HAL_GetTick() - time_tick) > max_time )
 	  {
 		  time_tick = HAL_GetTick();
-		  servo_set_angle(angle_table[i++]);
+		  servo_set_angle(angle_table[i]);
+		  readSonicSensor();
+
+		  way_table[i] = fSonicRead_Value;
+
+
+
+		  i = i + 1;
+
+
 
 		  if(i >= 4)
+		  {
+			  n = n + 1;
 			  i = 0;
+
+			  if(n >= 3)
+			  {
+
+				  for (i = 0; i < 5; i++)		// Finding max value from the scope of viewing
+				  {
+					  if (max < way_table[i])
+					  {
+						  max = way_table[i];
+						  Index = i;
+					  }
+				  }
+
+
+				  servo_set_angle(angle_table[Index]);		// Setting servo in position of the max value of the sensor
+				  HAL_Delay(10000);
+				  n = 0;
+			  }
+
+
+		  }
+
 	  }
 
 //	  readSonicSensor();
