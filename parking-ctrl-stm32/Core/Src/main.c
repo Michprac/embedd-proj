@@ -196,14 +196,65 @@ int main(void)
   HAL_TIM_IC_Start(&htim2, TIM_CHANNEL_1);
   HAL_TIM_IC_Start(&htim2, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
-  tick_start = HAL_GetTick();
+
+//  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+
+
+  servo_init(&htim3, TIM_CHANNEL_1);
+
+  int speed_table[] = {-20, 10, 20, 50};
+
+  uint8_t angle_table[] = {0, 50, 100, 180};
+
+  int i = 0;
+  uint32_t time_tick = HAL_GetTick();
+  uint32_t max_time = 2000;
+
   while (1)
   {
 
-	  readSonicSensor();
-	  vSignalDistanceValue();
-	  printDebugMessage();
-	  tick_start = HAL_GetTick();
+//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1000);
+//	  HAL_Delay(500);
+//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1100);
+//	  HAL_Delay(500);
+//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1200);
+//	  HAL_Delay(500);
+//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1300);
+//	  HAL_Delay(500);
+//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1400);
+//	  HAL_Delay(500);
+//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1500);
+//	  HAL_Delay(500);
+//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1600);
+//	  HAL_Delay(500);
+//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1500);
+//	  HAL_Delay(500);
+//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1600);
+//	  HAL_Delay(500);
+//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1700);
+//	  HAL_Delay(500);
+//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1800);
+//	  HAL_Delay(500);
+//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1900);
+//	  HAL_Delay(500);
+//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 2000);
+//	  HAL_Delay(500);
+//	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 2050);
+//	  HAL_Delay(2000);
+
+	  if ( (HAL_GetTick() - time_tick) > max_time )
+	  {
+		  time_tick = HAL_GetTick();
+		  servo_set_angle(angle_table[i++]);
+
+		  if(i >= 4)
+			  i = 0;
+	  }
+
+//	  readSonicSensor();
+//	  vSignalDistanceValue();
+//	  printDebugMessage();
+//	  tick_start = HAL_GetTick();
 
 
     /* USER CODE END WHILE */
@@ -354,7 +405,7 @@ static void MX_TIM3_Init(void)
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim3.Init.Period = 20000-1;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
   {
     Error_Handler();
@@ -375,7 +426,7 @@ static void MX_TIM3_Init(void)
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
+  sConfigOC.Pulse = 1000;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
