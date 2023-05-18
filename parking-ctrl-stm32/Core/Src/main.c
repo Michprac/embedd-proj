@@ -66,8 +66,6 @@ typedef struct{
 } LED_pins;
 
 const LED_pins LED_array[8] = {
-		{BLUE_1_GPIO_Port, BLUE_1_Pin},
-		{BLUE_2_GPIO_Port, BLUE_2_Pin},
 		{GREEN_3_GPIO_Port, GREEN_3_Pin},
 		{GREEN_4_GPIO_Port, GREEN_4_Pin},
 		{YELLOW_5_GPIO_Port, YELLOW_5_Pin},
@@ -78,7 +76,7 @@ const LED_pins LED_array[8] = {
 
 
 
-float valueArray[8] = {50.0, 32.0, 20.0, 15.0, 10.0, 7.0, 5.0, 3.0};
+float valueArray[8] = {60.0, 50.0, 40.0, 30.0, 20.0, 10.0};
 
 //TODO: add port #DONE!#, pin #DONE!# & scale values #DONE!# arrays
 
@@ -211,7 +209,7 @@ int main(void)
   int n = 0;
   int Index = 0;
   uint32_t time_tick = HAL_GetTick();
-  uint32_t max_time = 000;
+  uint32_t max_time = 1000;
 
   while (1)
   {
@@ -505,7 +503,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(RED_7_GPIO_Port, RED_7_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, Buzzer_pin_Pin|YELLOW_6_Pin|BLUE_1_Pin|BLUE_2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, Buzzer_pin_Pin|YELLOW_6_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : SERVO_analog_Pin */
   GPIO_InitStruct.Pin = SERVO_analog_Pin;
@@ -527,8 +525,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(RED_7_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : Buzzer_pin_Pin YELLOW_6_Pin BLUE_1_Pin BLUE_2_Pin */
-  GPIO_InitStruct.Pin = Buzzer_pin_Pin|YELLOW_6_Pin|BLUE_1_Pin|BLUE_2_Pin;
+  /*Configure GPIO pins : Buzzer_pin_Pin YELLOW_6_Pin */
+  GPIO_InitStruct.Pin = Buzzer_pin_Pin|YELLOW_6_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

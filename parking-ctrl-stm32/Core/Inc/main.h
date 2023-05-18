@@ -79,10 +79,6 @@ void Error_Handler(void);
 #define Buzzer_pin_GPIO_Port GPIOB
 #define YELLOW_6_Pin GPIO_PIN_6
 #define YELLOW_6_GPIO_Port GPIOB
-#define BLUE_1_Pin GPIO_PIN_8
-#define BLUE_1_GPIO_Port GPIOB
-#define BLUE_2_Pin GPIO_PIN_9
-#define BLUE_2_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
