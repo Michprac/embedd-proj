@@ -211,7 +211,7 @@ int main(void)
   int n = 0;
   int Index = 0;
   uint32_t time_tick = HAL_GetTick();
-  uint32_t max_time = 2000;
+  uint32_t max_time = 000;
 
   while (1)
   {
@@ -259,10 +259,9 @@ int main(void)
 
 	  }
 
-//	  readSonicSensor();
-//	  vSignalDistanceValue();
-//	  printDebugMessage();
-//	  tick_start = HAL_GetTick();
+	  readSonicSensor();
+	  vSignalDistanceValue();
+	  printDebugMessage();
 
 
     /* USER CODE END WHILE */
