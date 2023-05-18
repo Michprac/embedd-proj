@@ -60,8 +60,8 @@ all: main-build
 main-build: car.elf secondary-outputs
 
 # Tool invocations
-car.elf car.map: $(OBJS) $(USER_OBJS) C:\Users\asus\Desktop\new_maszynka\mini_car_stm32\parking-ctrl-stm32\STM32F303RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "car.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\asus\Desktop\new_maszynka\mini_car_stm32\parking-ctrl-stm32\STM32F303RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="car.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
+car.elf car.map: $(OBJS) $(USER_OBJS) /Users/patryk/github/mini_car_stm32/parking-ctrl-stm32/STM32F303RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "car.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/patryk/github/mini_car_stm32/parking-ctrl-stm32/STM32F303RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="car.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

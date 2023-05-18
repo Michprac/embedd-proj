@@ -61,14 +61,16 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define SERVO_analog_Pin GPIO_PIN_4
-#define SERVO_analog_GPIO_Port GPIOA
 #define GREEN_3_Pin GPIO_PIN_5
 #define GREEN_3_GPIO_Port GPIOA
 #define GREEN_4_Pin GPIO_PIN_6
 #define GREEN_4_GPIO_Port GPIOA
 #define YELLOW_5_Pin GPIO_PIN_7
 #define YELLOW_5_GPIO_Port GPIOA
+#define PC4_Pin GPIO_PIN_4
+#define PC4_GPIO_Port GPIOC
+#define PC5_Pin GPIO_PIN_5
+#define PC5_GPIO_Port GPIOC
 #define SERVO_Pin GPIO_PIN_6
 #define SERVO_GPIO_Port GPIOC
 #define RED_7_Pin GPIO_PIN_7
