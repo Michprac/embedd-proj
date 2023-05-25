@@ -34,6 +34,31 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+typedef struct{
+	GPIO_TypeDef *port;
+	uint16_t pin;
+} LED_pins;
+
+typedef enum{
+    INIT,
+    IDLE,
+    SAFE_DRIVE,
+    OBSTACLE_DETECTED,
+    WALL_DETECTED,
+    RESET_POSITION,
+
+} board_process_t;
+
+typedef enum{
+	STOP,
+	FORWARD,
+	BACKWARD,
+	TURN_RIGHT,
+	TURN_LEFT
+
+} drive_state_t;
+
+
 
 /* USER CODE END PD */
 
@@ -46,6 +71,7 @@
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
+TIM_HandleTypeDef htim15;
 TIM_HandleTypeDef htim16;
 
 UART_HandleTypeDef huart2;
@@ -62,10 +88,10 @@ uint32_t tick_start_2 = 0;
 
 uint8_t frequency_coeff = 0;
 
-typedef struct{
-	GPIO_TypeDef *port;
-	uint16_t pin;
-} LED_pins;
+board_process_t boardProcess = INIT;
+drive_state_t	activeDriveProcess = 0;
+drive_state_t	previousDriveProcess = 0;
+
 
 const LED_pins LED_array[6] = {
 		{GREEN_3_GPIO_Port, GREEN_3_Pin},
@@ -90,6 +116,7 @@ static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM16_Init(void);
 static void MX_TIM4_Init(void);
+static void MX_TIM15_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -125,7 +152,6 @@ void readSonicSensor(){
 
 void vSignalDistanceValue(){
 
-
 	unsigned long int array_size = sizeof(LED_array) / sizeof(LED_array[0]);
 	bool flag = false;
 
@@ -135,6 +161,9 @@ void vSignalDistanceValue(){
 
 			HAL_GPIO_WritePin(LED_array[i].port, LED_array[i].pin, GPIO_PIN_SET);
 			frequency_coeff = i+1;
+			if(LED_array[i].port == YELLOW_6_GPIO_Port){
+				boardProcess = OBSTACLE_DETECTED;
+			}
 		}
 		else {
 			HAL_GPIO_WritePin(LED_array[i].port, LED_array[i].pin, GPIO_PIN_RESET);
@@ -151,6 +180,155 @@ void vSignalDistanceValue(){
 	}
 
 }
+
+
+void vDriveForward(){
+	HAL_GPIO_WritePin(RIGHT_WHEEL_PC4_GPIO_Port, RIGHT_WHEEL_PC4_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(RIGHT_WHEEL_PC5_GPIO_Port, RIGHT_WHEEL_PC5_Pin, GPIO_PIN_RESET);
+
+	HAL_GPIO_WritePin(LEFT_WHEEL_PB0_GPIO_Port, LEFT_WHEEL_PB0_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(LEFT_WHEEL_PB1_GPIO_Port, LEFT_WHEEL_PB1_Pin, GPIO_PIN_RESET);
+
+}
+void vDriveBackward(){
+	HAL_GPIO_WritePin(RIGHT_WHEEL_PC4_GPIO_Port, RIGHT_WHEEL_PC4_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(RIGHT_WHEEL_PC5_GPIO_Port, RIGHT_WHEEL_PC5_Pin, GPIO_PIN_SET);
+
+	HAL_GPIO_WritePin(LEFT_WHEEL_PB0_GPIO_Port, LEFT_WHEEL_PB0_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(LEFT_WHEEL_PB1_GPIO_Port, LEFT_WHEEL_PB1_Pin, GPIO_PIN_SET);
+}
+
+void vStopAcceleration(){
+	HAL_GPIO_WritePin(RIGHT_WHEEL_PC4_GPIO_Port, RIGHT_WHEEL_PC4_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(RIGHT_WHEEL_PC5_GPIO_Port, RIGHT_WHEEL_PC5_Pin, GPIO_PIN_RESET);
+
+	HAL_GPIO_WritePin(LEFT_WHEEL_PB0_GPIO_Port, LEFT_WHEEL_PB0_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(LEFT_WHEEL_PB1_GPIO_Port, LEFT_WHEEL_PB1_Pin, GPIO_PIN_RESET);
+}
+
+void vTurnLeft(){
+
+	HAL_GPIO_WritePin(RIGHT_WHEEL_PC4_GPIO_Port, RIGHT_WHEEL_PC4_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(RIGHT_WHEEL_PC5_GPIO_Port, RIGHT_WHEEL_PC5_Pin, GPIO_PIN_RESET);
+
+	HAL_GPIO_WritePin(LEFT_WHEEL_PB0_GPIO_Port, LEFT_WHEEL_PB0_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(LEFT_WHEEL_PB1_GPIO_Port, LEFT_WHEEL_PB1_Pin, GPIO_PIN_RESET);
+
+}
+
+void vTurnRight(){
+
+	HAL_GPIO_WritePin(RIGHT_WHEEL_PC4_GPIO_Port, RIGHT_WHEEL_PC4_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(RIGHT_WHEEL_PC5_GPIO_Port, RIGHT_WHEEL_PC5_Pin, GPIO_PIN_RESET);
+
+	HAL_GPIO_WritePin(LEFT_WHEEL_PB0_GPIO_Port, LEFT_WHEEL_PB0_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(LEFT_WHEEL_PB1_GPIO_Port, LEFT_WHEEL_PB1_Pin, GPIO_PIN_RESET);
+
+}
+
+
+
+void vDriveProc(){
+
+	if(activeDriveProcess != previousDriveProcess){
+		previousDriveProcess = activeDriveProcess;
+		switch (activeDriveProcess) {
+			case FORWARD:
+				vDriveForward();
+				break;
+			case BACKWARD:
+				vDriveBackward();
+				break;
+			case TURN_RIGHT:
+				vTurnRight();
+				break;
+			case TURN_LEFT:
+				vTurnLeft();
+				break;
+			case STOP:
+				vStopAcceleration();
+				break;
+			default:
+				vStopAcceleration();
+				break;
+		}
+	}
+}
+
+uint8_t usScan(){
+
+	if(safe_right){
+		return 3u;
+
+	} else if(safe_left){
+		return 4u;
+
+	} else{
+		return 0u;
+
+	}
+
+
+}
+
+void vCar_Main(){
+
+	static uint8_t safe_right = 0u;
+	static uint8_t safe_left =  0u;
+	static uint8_t direction =  0u;
+
+	switch (boardProcess) {
+		case INIT:
+			if(activeDriveProcess >= 5){
+				activeDriveProcess = 0;
+			} else {
+				activeDriveProcess++;
+			}
+			vDriveProc();
+			break;
+		case IDLE:
+			activeDriveProcess = FORWARD;
+			vDriveProc();
+			break;
+
+		case OBSTACLE_DETECTED:
+			activeDriveProcess = STOP;
+			vDriveProc();
+			activeDriveProcess = usScan();
+			vDriveProc();
+
+			break;
+
+		default:
+			break;
+	}
+
+
+
+
+}
+
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	static uint8_t callbackHandler = 0;
+	static   int speedValue = 312;
+
+	if (htim == &htim15) {
+
+
+		if(callbackHandler % 20u == 0u){
+			__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_2, speedValue);
+			vCar_Main();
+		}
+		if(callbackHandler >= 40){
+			callbackHandler = 0;
+		}
+
+	}
+}
+
+
 
 
 
@@ -189,6 +367,7 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM16_Init();
   MX_TIM4_Init();
+  MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -201,7 +380,7 @@ int main(void)
 
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
 //  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-
+  HAL_TIM_Base_Start_IT(&htim15);
 
   servo_init(&htim3, TIM_CHANNEL_1);
 
@@ -217,9 +396,6 @@ int main(void)
   uint32_t max_time = 1000;
   int speedValue = 312;
 
-  HAL_GPIO_WritePin(PC4_GPIO_Port, PC4_Pin, GPIO_PIN_SET);
-  HAL_GPIO_WritePin(PC5_GPIO_Port, PC5_Pin, GPIO_PIN_RESET);
-
 
   while (1)
   {
@@ -232,13 +408,7 @@ int main(void)
 		  readSonicSensor();
 
 		  way_table[i] = fSonicRead_Value;
-
-
-
 		  i = i + 1;
-
-
-
 		  if(i >= 4)
 		  {
 			  n = n + 1;
@@ -256,7 +426,6 @@ int main(void)
 					  }
 				  }
 
-
 				  servo_set_angle(angle_table[Index]);		// Setting servo in position of the max value of the sensor
 				  HAL_Delay(10000);
 				  n = 0;
@@ -267,10 +436,6 @@ int main(void)
 
 	  }
 	  	  */
-	  readSonicSensor();
-	  vSignalDistanceValue();
-	  printDebugMessage();
-		__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_2, speedValue);
 
 
     /* USER CODE END WHILE */
@@ -318,9 +483,11 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_TIM16
-                              |RCC_PERIPHCLK_TIM2|RCC_PERIPHCLK_TIM34;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_TIM15
+                              |RCC_PERIPHCLK_TIM16|RCC_PERIPHCLK_TIM2
+                              |RCC_PERIPHCLK_TIM34;
   PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
+  PeriphClkInit.Tim15ClockSelection = RCC_TIM15CLK_HCLK;
   PeriphClkInit.Tim16ClockSelection = RCC_TIM16CLK_HCLK;
   PeriphClkInit.Tim2ClockSelection = RCC_TIM2CLK_HCLK;
   PeriphClkInit.Tim34ClockSelection = RCC_TIM34CLK_HCLK;
@@ -507,6 +674,52 @@ static void MX_TIM4_Init(void)
 }
 
 /**
+  * @brief TIM15 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM15_Init(void)
+{
+
+  /* USER CODE BEGIN TIM15_Init 0 */
+
+  /* USER CODE END TIM15_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM15_Init 1 */
+
+  /* USER CODE END TIM15_Init 1 */
+  htim15.Instance = TIM15;
+  htim15.Init.Prescaler = 3000-1;
+  htim15.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim15.Init.Period = 6000-1;
+  htim15.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim15.Init.RepetitionCounter = 0;
+  htim15.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim15) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim15, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim15, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM15_Init 2 */
+
+  /* USER CODE END TIM15_Init 2 */
+
+}
+
+/**
   * @brief TIM16 Initialization Function
   * @param None
   * @retval None
@@ -593,10 +806,10 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOA, GREEN_3_Pin|GREEN_4_Pin|YELLOW_5_Pin|RED_8_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, PC4_Pin|PC5_Pin|RED_7_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, RIGHT_WHEEL_PC4_Pin|RIGHT_WHEEL_PC5_Pin|RED_7_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, Buzzer_pin_Pin|YELLOW_6_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, LEFT_WHEEL_PB0_Pin|LEFT_WHEEL_PB1_Pin|Buzzer_pin_Pin|YELLOW_6_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : GREEN_3_Pin GREEN_4_Pin YELLOW_5_Pin RED_8_Pin */
   GPIO_InitStruct.Pin = GREEN_3_Pin|GREEN_4_Pin|YELLOW_5_Pin|RED_8_Pin;
@@ -605,15 +818,15 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PC4_Pin PC5_Pin RED_7_Pin */
-  GPIO_InitStruct.Pin = PC4_Pin|PC5_Pin|RED_7_Pin;
+  /*Configure GPIO pins : RIGHT_WHEEL_PC4_Pin RIGHT_WHEEL_PC5_Pin RED_7_Pin */
+  GPIO_InitStruct.Pin = RIGHT_WHEEL_PC4_Pin|RIGHT_WHEEL_PC5_Pin|RED_7_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : Buzzer_pin_Pin YELLOW_6_Pin */
-  GPIO_InitStruct.Pin = Buzzer_pin_Pin|YELLOW_6_Pin;
+  /*Configure GPIO pins : LEFT_WHEEL_PB0_Pin LEFT_WHEEL_PB1_Pin Buzzer_pin_Pin YELLOW_6_Pin */
+  GPIO_InitStruct.Pin = LEFT_WHEEL_PB0_Pin|LEFT_WHEEL_PB1_Pin|Buzzer_pin_Pin|YELLOW_6_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
