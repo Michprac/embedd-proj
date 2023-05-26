@@ -92,6 +92,10 @@ board_process_t boardProcess = INIT;
 drive_state_t	activeDriveProcess = 0;
 drive_state_t	previousDriveProcess = 0;
 
+uint8_t safe_forward = 0u;
+uint8_t safe_right = 0u;
+uint8_t safe_left =  0u;
+uint8_t direction =  0u;
 
 const LED_pins LED_array[6] = {
 		{GREEN_3_GPIO_Port, GREEN_3_Pin},
@@ -147,13 +151,13 @@ void readSonicSensor(){
 	ulSonicRead_Start = HAL_TIM_ReadCapturedValue(&htim2, TIM_CHANNEL_1);
 	ulSonicRead_Stop = HAL_TIM_ReadCapturedValue(&htim2, TIM_CHANNEL_2);
 	fSonicRead_Value = (float)((ulSonicRead_Stop - ulSonicRead_Start))/ 58.0;
-
 }
 
-void vSignalDistanceValue(){
+uint8_t vSignalDistanceValue(){
 
 	unsigned long int array_size = sizeof(LED_array) / sizeof(LED_array[0]);
 	bool flag = false;
+	uint8_t close_obstacle = 0;
 
 	for (int i = 0; i < array_size; i++){
 		if (fSonicRead_Value < valueArray[i]){
@@ -162,7 +166,7 @@ void vSignalDistanceValue(){
 			HAL_GPIO_WritePin(LED_array[i].port, LED_array[i].pin, GPIO_PIN_SET);
 			frequency_coeff = i+1;
 			if(LED_array[i].port == YELLOW_6_GPIO_Port){
-				boardProcess = OBSTACLE_DETECTED;
+				close_obstacle++;
 			}
 		}
 		else {
@@ -178,6 +182,7 @@ void vSignalDistanceValue(){
 	}else {
 		HAL_GPIO_WritePin(Buzzer_pin_GPIO_Port, Buzzer_pin_Pin, GPIO_PIN_RESET);
 	}
+	return close_obstacle;
 
 }
 
@@ -227,7 +232,6 @@ void vTurnRight(){
 }
 
 
-
 void vDriveProc(){
 
 	if(activeDriveProcess != previousDriveProcess){
@@ -255,7 +259,27 @@ void vDriveProc(){
 	}
 }
 
-uint8_t usScan(){
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
+    if(GPIO_Pin == USER_BUTTON_Pin){
+        boardProcess = SAFE_DRIVE;
+    }
+
+}
+
+uint8_t usScanWithSensor(){
+	readSonicSensor();
+	if(vSignalDistanceValue()){
+		return 1u;
+
+	} else {
+		return 0u;
+
+	}
+
+
+}
+
+uint8_t usScanForTurn(){
 
 	if(safe_right){
 		return 3u;
@@ -267,15 +291,23 @@ uint8_t usScan(){
 		return 0u;
 
 	}
+}
+
+uint8_t usScanForward(){
+
+	if(usScanWithSensor()){
+		return 1u;
+	} else{
+		return 0u;
+
+	}
 
 
 }
 
 void vCar_Main(){
 
-	static uint8_t safe_right = 0u;
-	static uint8_t safe_left =  0u;
-	static uint8_t direction =  0u;
+
 
 	switch (boardProcess) {
 		case INIT:
@@ -286,7 +318,13 @@ void vCar_Main(){
 			}
 			vDriveProc();
 			break;
+
 		case IDLE:
+			activeDriveProcess = STOP;
+			vDriveProc();
+			break;
+
+		case SAFE_DRIVE:
 			activeDriveProcess = FORWARD;
 			vDriveProc();
 			break;
@@ -294,7 +332,7 @@ void vCar_Main(){
 		case OBSTACLE_DETECTED:
 			activeDriveProcess = STOP;
 			vDriveProc();
-			activeDriveProcess = usScan();
+			activeDriveProcess = usScanForTurn();
 			vDriveProc();
 
 			break;
@@ -798,8 +836,8 @@ static void MX_GPIO_Init(void)
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
@@ -810,6 +848,12 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, LEFT_WHEEL_PB0_Pin|LEFT_WHEEL_PB1_Pin|Buzzer_pin_Pin|YELLOW_6_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : USER_BUTTON_Pin */
+  GPIO_InitStruct.Pin = USER_BUTTON_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(USER_BUTTON_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : GREEN_3_Pin GREEN_4_Pin YELLOW_5_Pin RED_8_Pin */
   GPIO_InitStruct.Pin = GREEN_3_Pin|GREEN_4_Pin|YELLOW_5_Pin|RED_8_Pin;
@@ -831,6 +875,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
