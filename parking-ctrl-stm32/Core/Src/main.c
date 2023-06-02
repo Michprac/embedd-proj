@@ -34,6 +34,13 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+#define FRONT_SENSOR_POS 65u
+#define LEFT_MAX_SENSOR_POS 180u
+#define RIGHT_MAX_SENSOR_POS 0u
+#define GET_LEFT_STATUS 1u
+#define GET_BOTH_STATUS 0u
+
 typedef struct{
 	GPIO_TypeDef *port;
 	uint16_t pin;
@@ -44,6 +51,7 @@ typedef enum{
     IDLE,
     SAFE_DRIVE,
     OBSTACLE_DETECTED,
+	TURN_EVENT,
     WALL_DETECTED,
     RESET_POSITION,
 
@@ -108,6 +116,18 @@ const LED_pins LED_array[6] = {
 
 float valueArray[6] = {60.0, 50.0, 40.0, 30.0, 20.0, 10.0};
 
+
+float way_table[] = {0, 0, 0, 0};
+float max = 0;
+uint8_t test_cnt = 0u;
+
+int i = 0;
+int n = 0;
+int Index = 0;
+uint32_t max_time = 1000;
+int speedValue = 312;
+uint8_t turn_event_handler = 0;
+
 //TODO: add port #DONE!#, pin #DONE!# & scale values #DONE!# arrays
 
 /* USER CODE END PV */
@@ -157,7 +177,7 @@ uint8_t vSignalDistanceValue(){
 
 	unsigned long int array_size = sizeof(LED_array) / sizeof(LED_array[0]);
 	bool flag = false;
-	uint8_t close_obstacle = 0;
+	uint8_t close_obstacle = 0u;
 
 	for (int i = 0; i < array_size; i++){
 		if (fSonicRead_Value < valueArray[i]){
@@ -165,8 +185,8 @@ uint8_t vSignalDistanceValue(){
 
 			HAL_GPIO_WritePin(LED_array[i].port, LED_array[i].pin, GPIO_PIN_SET);
 			frequency_coeff = i+1;
-			if(LED_array[i].port == YELLOW_6_GPIO_Port){
-				close_obstacle++;
+			if(LED_array[i].port == YELLOW_5_GPIO_Port){
+				close_obstacle=1u;
 			}
 		}
 		else {
@@ -266,7 +286,13 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 
 }
 
-uint8_t usScanWithSensor(){
+
+void vSetScannerPosition(const uint8_t SET_POS){
+	servo_set_angle(SET_POS);
+}
+
+uint8_t usScanWithSensor(const uint8_t POSITION){
+	vSetScannerPosition(POSITION);
 	readSonicSensor();
 	if(vSignalDistanceValue()){
 		return 1u;
@@ -275,44 +301,60 @@ uint8_t usScanWithSensor(){
 		return 0u;
 
 	}
-
-
 }
 
-uint8_t usScanForTurn(){
 
-	if(safe_right){
-		return 3u;
 
-	} else if(safe_left){
-		return 4u;
+uint8_t usScanForTurn(uint8_t turn_flag){
 
-	} else{
-		return 0u;
 
+	switch (turn_flag) {
+		case GET_BOTH_STATUS:
+			if(!usScanWithSensor(RIGHT_MAX_SENSOR_POS)){
+				return 3u;
+
+			} else if(!usScanWithSensor(LEFT_MAX_SENSOR_POS)){
+				return 4u;
+
+			} else{
+				return 0u;
+
+			}
+			break;
+
+		case GET_LEFT_STATUS:
+			if(!usScanWithSensor(LEFT_MAX_SENSOR_POS)){
+				return 4u;
+
+			} else{
+				return 0u;
+
+			}
+			break;
+		default:
+			return 0u;
+			break;
 	}
+
 }
 
 uint8_t usScanForward(){
 
-	if(usScanWithSensor()){
+	if(usScanWithSensor(FRONT_SENSOR_POS)){
 		return 1u;
 	} else{
 		return 0u;
 
 	}
-
-
 }
 
 void vCar_Main(){
-
-
-
 	switch (boardProcess) {
 		case INIT:
 			if(activeDriveProcess >= 5){
 				activeDriveProcess = 0;
+				vSetScannerPosition(FRONT_SENSOR_POS);
+				boardProcess = IDLE;
 			} else {
 				activeDriveProcess++;
 			}
@@ -325,24 +367,81 @@ void vCar_Main(){
 			break;
 
 		case SAFE_DRIVE:
-			activeDriveProcess = FORWARD;
+			test_cnt++;
+			if(usScanForward())
+			{
+				boardProcess = OBSTACLE_DETECTED;
+				activeDriveProcess = STOP;
+
+			} else{
+				activeDriveProcess = FORWARD;
+
+			}
 			vDriveProc();
 			break;
 
 		case OBSTACLE_DETECTED:
 			activeDriveProcess = STOP;
 			vDriveProc();
-			activeDriveProcess = usScanForTurn();
+			activeDriveProcess = usScanForTurn(GET_BOTH_STATUS);
 			vDriveProc();
-
+			boardProcess = TURN_EVENT;
 			break;
+		case TURN_EVENT:
+			if(turn_event_handler ==4){
+				activeDriveProcess = STOP;
+				vDriveProc();
+				turn_event_handler++;
 
+			} else if(turn_event_handler >= 5 && turn_event_handler < 8){
+				activeDriveProcess = FORWARD;
+				vDriveProc();
+				turn_event_handler++;
+
+			} else if(turn_event_handler == 8){
+				activeDriveProcess = STOP;
+				vDriveProc();
+				activeDriveProcess = usScanForTurn(GET_LEFT_STATUS);
+				if(activeDriveProcess != TURN_LEFT){
+					activeDriveProcess = FORWARD;
+				} else{
+					turn_event_handler++;
+				}
+				vDriveProc();
+
+			} else if(turn_event_handler == 12){
+
+				activeDriveProcess = STOP;
+				vDriveProc();
+				activeDriveProcess = usScanForTurn(GET_LEFT_STATUS);
+				if(activeDriveProcess != TURN_LEFT){
+					activeDriveProcess = FORWARD;
+				} else{
+					turn_event_handler++;
+				}
+				vDriveProc();
+
+			}else if(turn_event_handler == 16){
+
+				activeDriveProcess = STOP;
+				vDriveProc();
+				activeDriveProcess = usScanForTurn(GET_BOTH_STATUS);
+				if(activeDriveProcess != TURN_RIGHT){
+					activeDriveProcess = FORWARD;
+				} else{
+					boardProcess = SAFE_DRIVE;
+					turn_event_handler = 0;
+				}
+				vDriveProc();
+
+			}
+			else{
+			turn_event_handler++;
+			}
+			break;
 		default:
 			break;
 	}
-
-
-
 
 }
 
@@ -412,6 +511,7 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  servo_init(&htim3, TIM_CHANNEL_1);
   HAL_TIM_IC_Start(&htim2, TIM_CHANNEL_1);
   HAL_TIM_IC_Start(&htim2, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
@@ -420,19 +520,6 @@ int main(void)
 //  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
   HAL_TIM_Base_Start_IT(&htim15);
 
-  servo_init(&htim3, TIM_CHANNEL_1);
-
-  uint8_t angle_table[] = {0, 50, 100, 180};
-  float way_table[] = {0, 0, 0, 0};
-  float max = 0;
-
-
-  int i = 0;
-  int n = 0;
-  int Index = 0;
-  uint32_t time_tick = HAL_GetTick();
-  uint32_t max_time = 1000;
-  int speedValue = 312;
 
 
   while (1)
