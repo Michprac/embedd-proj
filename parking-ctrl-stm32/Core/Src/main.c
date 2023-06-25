@@ -35,8 +35,9 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-#define FRONT_SENSOR_POS 65u
-#define LEFT_MAX_SENSOR_POS 180u
+#define DISTANCE_PER_SEC 0.08f
+#define FRONT_SENSOR_POS 55u
+#define LEFT_MAX_SENSOR_POS 200u
 #define RIGHT_MAX_SENSOR_POS 0u
 #define GET_LEFT_STATUS 1u
 #define GET_BOTH_STATUS 0u
@@ -52,8 +53,7 @@ typedef enum{
     SAFE_DRIVE,
     OBSTACLE_DETECTED,
 	TURN_EVENT,
-    WALL_DETECTED,
-    RESET_POSITION,
+    TURN_BACK_EVENT,
 
 } board_process_t;
 
@@ -93,6 +93,8 @@ uint8_t message[50] = {0};
 
 uint32_t tick_start = 0;
 uint32_t tick_start_2 = 0;
+float distance = 0.0f;
+
 
 uint8_t frequency_coeff = 0;
 
@@ -114,7 +116,7 @@ const LED_pins LED_array[6] = {
 		{RED_8_GPIO_Port, RED_8_Pin},
 };
 
-float valueArray[6] = {60.0, 50.0, 40.0, 30.0, 20.0, 10.0};
+float valueArray[6] = {200.0, 50.0, 40.0, 30.0, 20.0, 10.0};
 
 
 float way_table[] = {0, 0, 0, 0};
@@ -125,7 +127,7 @@ int i = 0;
 int n = 0;
 int Index = 0;
 uint32_t max_time = 1000;
-int speedValue = 312;
+int speedValue = 220;
 uint8_t turn_event_handler = 0;
 
 //TODO: add port #DONE!#, pin #DONE!# & scale values #DONE!# arrays
@@ -175,7 +177,7 @@ void readSonicSensor(){
 
 uint8_t vSignalDistanceValue(){
 
-	unsigned long int array_size = sizeof(LED_array) / sizeof(LED_array[0]);
+	int array_size = sizeof(LED_array) / sizeof(LED_array[0]);
 	bool flag = false;
 	uint8_t close_obstacle = 0u;
 
@@ -185,7 +187,7 @@ uint8_t vSignalDistanceValue(){
 
 			HAL_GPIO_WritePin(LED_array[i].port, LED_array[i].pin, GPIO_PIN_SET);
 			frequency_coeff = i+1;
-			if(LED_array[i].port == YELLOW_5_GPIO_Port){
+			if(i == 4){
 				close_obstacle=1u;
 			}
 		}
@@ -193,7 +195,6 @@ uint8_t vSignalDistanceValue(){
 			HAL_GPIO_WritePin(LED_array[i].port, LED_array[i].pin, GPIO_PIN_RESET);
 		}
 	}
-
 	if (flag){ // If flag is on (parking mode), then the sound can be heard in different frequency
 		if (HAL_GetTick() - tick_start_2 > (int) 1000/frequency_coeff){
 			HAL_GPIO_TogglePin(Buzzer_pin_GPIO_Port, Buzzer_pin_Pin);
@@ -252,13 +253,13 @@ void vTurnRight(){
 }
 
 
-void vDriveProc(){
+float vDriveProc(){
 
-	if(activeDriveProcess != previousDriveProcess){
-		previousDriveProcess = activeDriveProcess;
+		float temp_distance = 0.0f;
 		switch (activeDriveProcess) {
 			case FORWARD:
 				vDriveForward();
+				temp_distance = 0.09f;
 				break;
 			case BACKWARD:
 				vDriveBackward();
@@ -276,7 +277,7 @@ void vDriveProc(){
 				vStopAcceleration();
 				break;
 		}
-	}
+		return temp_distance;
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
@@ -307,7 +308,6 @@ uint8_t usScanWithSensor(const uint8_t POSITION){
 
 uint8_t usScanForTurn(uint8_t turn_flag){
 
-
 	switch (turn_flag) {
 		case GET_BOTH_STATUS:
 			if(!usScanWithSensor(RIGHT_MAX_SENSOR_POS)){
@@ -318,17 +318,14 @@ uint8_t usScanForTurn(uint8_t turn_flag){
 
 			} else{
 				return 0u;
-
 			}
 			break;
 
 		case GET_LEFT_STATUS:
 			if(!usScanWithSensor(LEFT_MAX_SENSOR_POS)){
 				return 4u;
-
 			} else{
 				return 0u;
-
 			}
 			break;
 		default:
@@ -349,6 +346,10 @@ uint8_t usScanForward(){
 }
 
 void vCar_Main(){
+
+	static uint8_t turn_side = 0u;
+	static float count_distance = 0.0f;
+
 	switch (boardProcess) {
 		case INIT:
 			if(activeDriveProcess >= 5){
@@ -357,8 +358,8 @@ void vCar_Main(){
 				boardProcess = IDLE;
 			} else {
 				activeDriveProcess++;
+
 			}
-			vDriveProc();
 			break;
 
 		case IDLE:
@@ -367,18 +368,67 @@ void vCar_Main(){
 			break;
 
 		case SAFE_DRIVE:
-			test_cnt++;
-			if(usScanForward())
-			{
-				boardProcess = OBSTACLE_DETECTED;
-				activeDriveProcess = STOP;
+//			if(usScanForward())
+//			{
+//				boardProcess = OBSTACLE_DETECTED;
+//				activeDriveProcess = STOP;
+//
+//			} else{
+//				activeDriveProcess = FORWARD;
+//
+//			}
 
-			} else{
-				activeDriveProcess = FORWARD;
+
+			if(usScanForward() == 1u){
+				activeDriveProcess = STOP;
+				vDriveProc();
+				boardProcess = IDLE;
+				distance += count_distance;
+				count_distance = 0.0f;
+				break;
 
 			}
-			vDriveProc();
+			activeDriveProcess = FORWARD;
+			count_distance += vDriveProc();
+
+			if(count_distance >= 0.99f){
+				activeDriveProcess = STOP;
+				vDriveProc();
+				boardProcess = TURN_BACK_EVENT;
+				distance += count_distance;
+				count_distance = 0.0f;
+
+			}
+
 			break;
+
+		case TURN_BACK_EVENT:
+			if(turn_side % 2 == 0){
+				activeDriveProcess = TURN_RIGHT;
+				vDriveProc();
+				test_cnt++;
+			} else{
+				activeDriveProcess = TURN_LEFT;
+				vDriveProc();
+				test_cnt++;
+			}
+
+			if(test_cnt >= 4){
+				activeDriveProcess = STOP;
+				vDriveProc();
+				turn_side++;
+				test_cnt=0;
+				boardProcess = SAFE_DRIVE;
+
+			}
+
+			if(turn_side >= 6){
+				boardProcess = IDLE;
+				turn_side=0;
+			}
+
+			break;
+
 
 		case OBSTACLE_DETECTED:
 			activeDriveProcess = STOP;
@@ -448,19 +498,12 @@ void vCar_Main(){
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-	static uint8_t callbackHandler = 0;
-	static   int speedValue = 312;
+	static   int speedValue = 230;
 
 	if (htim == &htim15) {
 
-
-		if(callbackHandler % 20u == 0u){
-			__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_2, speedValue);
-			vCar_Main();
-		}
-		if(callbackHandler >= 40){
-			callbackHandler = 0;
-		}
+		__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_2, speedValue);
+		vCar_Main();
 
 	}
 }
@@ -525,42 +568,7 @@ int main(void)
   while (1)
   {
 
-/*
-	  if ( (HAL_GetTick() - time_tick) > max_time )
-	  {
-		  time_tick = HAL_GetTick();
-		  servo_set_angle(angle_table[i]);
-		  readSonicSensor();
-
-		  way_table[i] = fSonicRead_Value;
-		  i = i + 1;
-		  if(i >= 4)
-		  {
-			  n = n + 1;
-			  i = 0;
-
-			  if(n >= 3)
-			  {
-
-				  for (i = 0; i < 5; i++)		// Finding max value from the scope of viewing
-				  {
-					  if (max < way_table[i])
-					  {
-						  max = way_table[i];
-						  Index = i;
-					  }
-				  }
-
-				  servo_set_angle(angle_table[Index]);		// Setting servo in position of the max value of the sensor
-				  HAL_Delay(10000);
-				  n = 0;
-			  }
-
-
-		  }
-
-	  }
-	  	  */
+	  /* USER CODE BEGIN WHILE */
 
 
     /* USER CODE END WHILE */
@@ -817,9 +825,9 @@ static void MX_TIM15_Init(void)
 
   /* USER CODE END TIM15_Init 1 */
   htim15.Instance = TIM15;
-  htim15.Init.Prescaler = 3000-1;
+  htim15.Init.Prescaler = 7200-1;
   htim15.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim15.Init.Period = 6000-1;
+  htim15.Init.Period = 2500-1;
   htim15.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim15.Init.RepetitionCounter = 0;
   htim15.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
